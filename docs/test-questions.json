@@ -1,0 +1,27 @@
+{
+  "single_hop": [
+    "How old is Bob Smith?",
+    "Where does Alice Chen work?",
+    "What is TechNova's main product?"
+  ],
+  "two_hop": [
+    "What company does Charlie's father work for?",
+    "Who founded the company that Bob works at?",
+    "Where did Alice's PhD supervisor work?"
+  ],
+  "multi_hop": [
+    "What is the relationship between Bob's employer and JPMorgan Chase?",
+    "Trace Bob's career path from education to his current job.",
+    "How are Stanford University and TechNova Inc connected through people?",
+    "What organizations are the Smith family members involved with?"
+  ],
+  "cross_entity": [
+    "Which people in Bob's network have connections to AI or machine learning research?",
+    "What are all the locations connected to the Smith-Chen family?",
+    "Who are the co-authors of Alice's Nature paper and what institutions are they from?"
+  ],
+  "stress_tests": [
+    "Map out all the companies, universities, and organizations mentioned and how they're connected to each other through people.",
+    "Describe the complete social and professional network around Bob Smith — family, colleagues, employers, and their connections."
+  ]
+}

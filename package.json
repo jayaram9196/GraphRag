@@ -1,0 +1,45 @@
+{
+  "name": "genkitx-neo4j",
+  "version": "1.0.0",
+  "description": "Genkit plugin for Neo4j graph vector database - indexer and retriever implementations using Neo4j for vector search",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf lib",
+    "genkit:dev": "genkit start -- npx tsx src/index.ts",
+    "reset": "npx tsx src/scripts/reset.ts",
+    "index": "npx tsx src/scripts/index-docs.ts",
+    "query": "npx tsx src/scripts/query.ts"
+  },
+  "keywords": [
+    "genkit",
+    "neo4j",
+    "vector-search",
+    "graph-database",
+    "rag",
+    "embeddings",
+    "ai"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@genkit-ai/google-genai": "^1.0.0",
+    "dotenv": "^17.4.2",
+    "genkit": "^1.0.0",
+    "neo4j-driver": "^5.27.0"
+  },
+  "devDependencies": {
+    "genkit-cli": "^1.0.0",
+    "rimraf": "^6.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
