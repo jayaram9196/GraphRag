@@ -1,5 +1,5 @@
 import { z, Document } from 'genkit';
-import { ai } from './genkit';
+import { ai, GENERATION_MODEL } from './genkit';
 import { bobFactsRetriever, bobFactsIndexer } from './refs';
 import { extractKnowledge, writeKnowledgeGraph, getGraphContext } from './graph';
 
@@ -96,7 +96,7 @@ export const graphRagFlow = ai.defineFlow(
 
     // Step 2: Extract entity names from question + retrieved docs
     const { output: extracted } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
+      model: GENERATION_MODEL,
       output: {
         schema: z.object({
           names: z
@@ -119,11 +119,18 @@ export const graphRagFlow = ai.defineFlow(
       : '';
 
     const { text } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
+      model: GENERATION_MODEL,
       system:
-        'You are a helpful assistant that answers questions using the provided documents and knowledge graph relationships. ' +
-        'The graph relationships show how entities are connected — use them to give richer, more complete answers. ' +
-        "If the context does not contain relevant information, say you don't know.",
+        'You answer questions using ONLY the provided documents and knowledge graph relationships. ' +
+        'Output rules (follow strictly):\n' +
+        '1. No opening or closing sentences. No preamble. No summary. Answer directly.\n' +
+        '2. For list questions, return a numbered list. Each item must cite a graph edge EXACTLY as it appears in the knowledge graph relationships above — do not invent, rename, or flip edges.\n' +
+        '3. Only include DIRECT connections — a first-degree edge between the subject and the target. Do NOT include connections mediated by another entity (e.g. if Alice is married to Bob and Bob works at X, X is NOT Alice\'s connection to report).\n' +
+        '4. When multiple subjects share the answer, group by subject — one heading per subject, then their items beneath.\n' +
+        '5. Each item must be one line: `<Target>` — <one-line fact>. Evidence: `(Subject) -[RELATIONSHIP]-> (Target)`.\n' +
+        '6. Copy the edge direction verbatim from the provided graph. If the graph shows `(MIT) -[X]-> (Alice)`, write it that way, not flipped.\n' +
+        '7. Do not paraphrase the question. Do not say "based on the documents" or "these connections are based on".\n' +
+        '8. If the context does not contain the answer, reply exactly: `Not in the provided context.`',
       prompt: `Documents:\n${sources.join('\n')}${graphSection}\n\nQuestion: ${question}`,
     });
 

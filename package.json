@@ -31,6 +31,7 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
+    "@genkit-ai/compat-oai": "^1.0.0",
     "@genkit-ai/google-genai": "^1.0.0",
     "dotenv": "^17.4.2",
     "genkit": "^1.0.0",

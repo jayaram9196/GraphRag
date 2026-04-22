@@ -1,6 +1,6 @@
 import { z } from 'genkit';
 import neo4jDriver, { type Driver } from 'neo4j-driver';
-import { ai } from './genkit';
+import { ai, GENERATION_MODEL } from './genkit';
 
 // ── Extraction schemas ─────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ export async function extractKnowledge(
   text: string
 ): Promise<KnowledgeGraph> {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash',
+    model: GENERATION_MODEL,
     output: { schema: KnowledgeGraphSchema },
     prompt: `Extract all entities and their relationships from the following text.
 
@@ -142,15 +142,14 @@ export async function getGraphContext(
     const result = await session.run(
       `UNWIND $names AS name
        MATCH (e:Entity {name: name})
-       OPTIONAL MATCH (e)-[r]-(related:Entity)
+       OPTIONAL MATCH (e)-[rOut]->(outNode:Entity)
+       WITH e, collect(DISTINCT {rel: type(rOut), target: outNode.name}) AS outgoing
+       OPTIONAL MATCH (inNode:Entity)-[rIn]->(e)
        RETURN e.name AS entity,
               labels(e) AS types,
               e AS node,
-              collect(DISTINCT {
-                rel: type(r),
-                target: related.name,
-                targetTypes: labels(related)
-              }) AS connections`,
+              outgoing,
+              collect(DISTINCT {rel: type(rIn), source: inNode.name}) AS incoming`,
       { names: entityNames }
     );
 
@@ -162,23 +161,29 @@ export async function getGraphContext(
       const node = record.get('node');
       const props = node.properties as Record<string, unknown>;
 
-      // Build property string (exclude 'name')
       const propPairs = Object.entries(props)
         .filter(([k]) => k !== 'name')
         .map(([k, v]) => `${k}: ${v}`);
       const propStr = propPairs.length ? ` {${propPairs.join(', ')}}` : '';
 
-      const connections = record.get('connections') as Array<{
+      const outgoing = record.get('outgoing') as Array<{
         rel: string | null;
         target: string | null;
-        targetTypes: string[];
+      }>;
+      const incoming = record.get('incoming') as Array<{
+        rel: string | null;
+        source: string | null;
       }>;
 
-      const connStrs = connections
+      const outStrs = outgoing
         .filter((c) => c.target)
-        .map((c) => `-[${c.rel}]-> ${c.target}`);
+        .map((c) => `(${entity}) -[${c.rel}]-> (${c.target})`);
+      const inStrs = incoming
+        .filter((c) => c.source)
+        .map((c) => `(${c.source}) -[${c.rel}]-> (${entity})`);
 
-      return `${entity} (${types.join('/')})${propStr}${connStrs.length ? ': ' + connStrs.join('; ') : ''}`;
+      const edges = [...outStrs, ...inStrs];
+      return `${entity} (${types.join('/')})${propStr}${edges.length ? '\n  ' + edges.join('\n  ') : ''}`;
     });
   } finally {
     await session.close();
