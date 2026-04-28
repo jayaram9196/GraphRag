@@ -59,6 +59,7 @@ GraphRAG/
 - Node.js 20+
 - A [Neo4j Aura](https://console.neo4j.io) instance (free tier works), or a local Neo4j 5.x installation
 - A [Google AI API key](https://aistudio.google.com/apikey) for Gemini
+- Docker (for the LiteLLM observability proxy — optional, but generation will fail if you haven't started it or pointed the app elsewhere)
 
 ## Setup
 
@@ -83,6 +84,35 @@ GraphRAG/
    NEO4J_DATABASE=neo4j
    GOOGLE_API_KEY=your-google-api-key
    ```
+
+## LiteLLM Proxy (observability)
+
+Groq generation calls are routed through a local [LiteLLM Proxy](https://docs.litellm.ai/docs/simple_proxy) so that requests, tokens, cost, and latency are recorded and visible in the LiteLLM admin UI.
+
+**Start the proxy** (requires Docker):
+
+```bash
+docker compose -f docker-compose.litellm.yml up -d
+```
+
+This starts two containers — a Postgres for spend logs and the LiteLLM proxy on port **4001** (Genkit dev UI uses 4000, hence the offset).
+
+**Open the admin UI** at [http://localhost:4001/ui](http://localhost:4001/ui).
+
+- Username: `admin`
+- Password: the value of `LITELLM_MASTER_KEY` in your `.env`
+
+You'll see per-request rows with model, tokens (prompt/completion/total), cost, and latency, plus dashboards for spend over time and per-key usage.
+
+**Stop the proxy:**
+
+```bash
+docker compose -f docker-compose.litellm.yml down
+```
+
+Add `-v` to also drop the Postgres volume and wipe history.
+
+> Embeddings still go directly to Google Gemini and won't appear in the LiteLLM UI. Only Groq generation calls (entity extraction in `buildGraph`, and the answer step in `graphRag`) flow through the proxy.
 
 ## Usage
 

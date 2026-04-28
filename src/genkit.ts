@@ -11,8 +11,8 @@ export const ai = genkit({
     googleAI(),
     openAICompatible({
       name: 'groq',
-      apiKey: process.env.GROQ_API_KEY,
-      baseURL: 'https://api.groq.com/openai/v1',
+      apiKey: process.env.LITELLM_MASTER_KEY,
+      baseURL: process.env.LITELLM_BASE_URL ?? 'http://localhost:4001/v1',
     }),
     neo4j([
       {
