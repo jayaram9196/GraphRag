@@ -131,17 +131,34 @@ export async function writeKnowledgeGraph(
 }
 
 // ── Retrieve graph context for a set of entity names ───────────────────
+//
+// Strategy: undirected BFS up to (maxHops - 1) hops from each seed name,
+// then return the 1-hop neighborhood (incoming + outgoing edges) of every
+// entity reached. With maxHops = 2 (default), this surfaces edges that
+// are up to 2 hops away from the seeds — needed for multi-hop questions
+// where the answer entity isn't directly connected to anything mentioned
+// in the question or retrieved documents.
 
 export async function getGraphContext(
-  entityNames: string[]
+  entityNames: string[],
+  options: { maxHops?: number; maxEntities?: number } = {}
 ): Promise<string[]> {
+  const maxHops = Math.max(1, options.maxHops ?? 2);
+  const maxEntities = Math.max(1, options.maxEntities ?? 50);
+  const expansionHops = maxHops - 1;
+
   const driver = getDriver();
   const session = driver.session({ database: getDatabase() });
 
   try {
     const result = await session.run(
       `UNWIND $names AS name
-       MATCH (e:Entity {name: name})
+       MATCH (seed:Entity {name: name})
+       OPTIONAL MATCH (seed)-[*0..${expansionHops}]-(reached:Entity)
+       WITH collect(DISTINCT reached) AS entities
+       UNWIND entities AS e
+       WITH DISTINCT e
+       LIMIT ${maxEntities}
        OPTIONAL MATCH (e)-[rOut]->(outNode:Entity)
        WITH e, collect(DISTINCT {rel: type(rOut), target: outNode.name}) AS outgoing
        OPTIONAL MATCH (inNode:Entity)-[rIn]->(e)

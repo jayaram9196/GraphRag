@@ -121,16 +121,27 @@ export const graphRagFlow = ai.defineFlow(
     const { text } = await ai.generate({
       model: GENERATION_MODEL,
       system:
-        'You answer questions using ONLY the provided documents and knowledge graph relationships. ' +
-        'Output rules (follow strictly):\n' +
-        '1. No opening or closing sentences. No preamble. No summary. Answer directly.\n' +
-        '2. For list questions, return a numbered list. Each item must cite a graph edge EXACTLY as it appears in the knowledge graph relationships above — do not invent, rename, or flip edges.\n' +
-        '3. Only include DIRECT connections — a first-degree edge between the subject and the target. Do NOT include connections mediated by another entity (e.g. if Alice is married to Bob and Bob works at X, X is NOT Alice\'s connection to report).\n' +
-        '4. When multiple subjects share the answer, group by subject — one heading per subject, then their items beneath.\n' +
-        '5. Each item must be one line: `<Target>` — <one-line fact>. Evidence: `(Subject) -[RELATIONSHIP]-> (Target)`.\n' +
-        '6. Copy the edge direction verbatim from the provided graph. If the graph shows `(MIT) -[X]-> (Alice)`, write it that way, not flipped.\n' +
-        '7. Do not paraphrase the question. Do not say "based on the documents" or "these connections are based on".\n' +
-        '8. If the context does not contain the answer, reply exactly: `Not in the provided context.`',
+        'You answer questions using ONLY the provided documents and knowledge graph relationships.\n\n' +
+        'Procedure for nested / multi-hop questions ("X whose Y did Z", "the employer of the person who ..."):\n' +
+        '1. Decompose the question from the INSIDE OUT. Resolve the innermost clause first, then use that result as the input to the next clause, until you reach the outermost question.\n' +
+        '2. At each step, find an edge in the provided graph that satisfies the clause. Write the step as: `Step N: <sub-question> → <entity>  (edge: <graph edge verbatim>)`.\n' +
+        '3. Treat entities whose names clearly refer to the same real-world thing as one entity (e.g. "Alice" and "Alice Chen", "Bob" and "Bob Smith").\n' +
+        '4. Edges must appear VERBATIM in the provided graph. You cannot flip an edge or rename its label. If the graph has `(David Li) -[SUPERVISED]-> (Alice)`, you cannot cite `(Alice) -[STUDIED_UNDER]-> (David Li)` — that is invention. Use the original edge as-is, even if it points the "wrong" way for your sentence.\n' +
+        '5. After the decomposition, verify: does the final entity satisfy EVERY clause in the original question? If not, your subject is wrong — restart from step 1.\n\n' +
+        'Worked example (study this carefully):\n' +
+        'Question: "Which company employs someone whose spouse studied under David Li?"\n' +
+        'Decomposition:\n' +
+        '  Step 1: Who studied under David Li?  → Alice  (edge: (David Li) -[SUPERVISED]-> (Alice))\n' +
+        '  Step 2: Who is Alice\'s spouse?       → Bob    (edge: (Alice Chen) -[IS_WIFE_OF]-> (Bob))\n' +
+        '  Step 3: Which company employs Bob?   → TechNova Inc  (edge: (Bob) -[JOINED]-> (TechNova Inc))\n' +
+        'Verify: TechNova Inc employs Bob (✓), Bob\'s spouse Alice studied under David Li (✓). Subject is correct.\n' +
+        'Final answer: TechNova Inc. Evidence: (David Li) -[SUPERVISED]-> (Alice); (Alice Chen) -[IS_WIFE_OF]-> (Bob); (Bob) -[JOINED]-> (TechNova Inc)\n\n' +
+        'Output rules:\n' +
+        '- Output ONLY the final answer line. Do NOT output the decomposition steps or the verification — do that reasoning silently.\n' +
+        '- Single-answer question: `<Answer>`. Evidence: `(A) -[R1]-> (B); (B) -[R2]-> (C); ...`\n' +
+        '- List question: numbered list, one item per line, same format. Only include items that satisfy ALL constraints.\n' +
+        '- If the context does not contain the answer, reply exactly: `Not in the provided context.`\n' +
+        '- No preamble, no summary, no "based on the documents" filler.',
       prompt: `Documents:\n${sources.join('\n')}${graphSection}\n\nQuestion: ${question}`,
     });
 
